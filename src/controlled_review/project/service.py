@@ -5,6 +5,7 @@
 """
 
 import hashlib
+import os
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -48,6 +49,8 @@ class ProjectService:
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.store = StateStore.create(self.state_dir / "review_state.sqlite3")
+        # 写入所有权映射：project_id -> (process_id, acquired_at)
+        self._owners = {}
 
     def create(self, sources):
         """创建项目并冻结源文件摘要。
@@ -104,3 +107,44 @@ class ProjectService:
             path = Path(path_str)
             if sha256_file(path) != stored_digest:
                 raise SourceChanged(path=path)
+
+    def acquire_writer(self, project_id):
+        """获取项目写入权。第二进程调用时抛出 ProjectAlreadyOwned。"""
+        # 检查是否已有写入者持有该项目
+        if project_id in self._owners:
+            raise ProjectAlreadyOwned(project_id)
+        # 记录写入者信息：进程标识 + 心跳时间
+        process_id = os.getpid()
+        acquired_at = datetime.now(timezone.utc)
+        self._owners[project_id] = (process_id, acquired_at)
+        return WriterLease(
+            project_id=project_id,
+            process_id=process_id,
+            acquired_at=acquired_at,
+            service=self,
+        )
+
+    def _release_writer(self, project_id):
+        """释放项目写入权。"""
+        self._owners.pop(project_id, None)
+
+
+class ProjectAlreadyOwned(Exception):
+    """项目已被其他写入者持有时抛出。"""
+
+
+class WriterLease:
+    """写入租约，持有进程标识与心跳信息。
+
+    release() 后释放项目写入权。
+    """
+
+    def __init__(self, project_id, process_id, acquired_at, service):
+        self.project_id = project_id
+        self.process_id = process_id
+        self.acquired_at = acquired_at
+        self._service = service
+
+    def release(self):
+        """释放写入权。"""
+        self._service._release_writer(self.project_id)

@@ -33,6 +33,25 @@ def sample_xlsx(tmp_path):
 
 
 @pytest.fixture
+def workbook_nodes():
+    """创建测试用工作簿节点列表。
+
+    提供三张工作表：
+    - "合并资产负债表1"（合并层面，拆分第一部分）
+    - "合并资产负债表2"（合并层面，拆分第二部分）
+    - "母公司资产负债表"（母公司层面）
+    """
+    from controlled_review.documents.models import SheetNode, WorkbookNode
+
+    sheets = [
+        SheetNode(name="合并资产负债表1"),
+        SheetNode(name="合并资产负债表2"),
+        SheetNode(name="母公司资产负债表"),
+    ]
+    return [WorkbookNode(path="test.xlsx", sheets=sheets)]
+
+
+@pytest.fixture
 def recalculator(monkeypatch):
     """返回 mock 了 Excel 的 OfficeRecalculator。
 

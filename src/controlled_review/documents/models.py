@@ -1,11 +1,14 @@
 """文档节点模型。
 
-定义 XLSX 等文档解析后的结构化节点：
+定义 XLSX/DOCX 等文档解析后的结构化节点：
 - CellNode：单元格节点，保存地址、公式、缓存值、原始值、数字格式、数据类型
 - RowNode：行节点，保存行号与隐藏状态
 - SheetNode：工作表节点，保存单元格、行、可见状态、合并区域、命名区域、打印区域
 - RiskNode：风险节点，标记宏/数据透视表/外部连接等风险
 - WorkbookNode：工作簿节点，保存工作表列表、风险列表、命名区域、外部链接
+- RevisionNode：DOCX 修订节点，保存插入/删除的文本
+- CommentNode：DOCX 批注节点，保存批注 ID、内容、作者
+- DocumentNode：DOCX 文档节点，保存最终正文、段落、表格、修订、批注、限制
 """
 
 from dataclasses import dataclass, field
@@ -129,3 +132,53 @@ class WorkbookNode:
             if s.name == name:
                 return s
         raise KeyError(f"工作表不存在: {name}")
+
+
+@dataclass(frozen=True)
+class RevisionNode:
+    """DOCX 修订节点。
+
+    revision_type: 修订类型，insert/delete
+    deleted_text: 被删除的文本（仅 delete 时有值）
+    inserted_text: 被插入的文本（仅 insert 时有值）
+    """
+
+    revision_type: str
+    deleted_text: str = ""
+    inserted_text: str = ""
+
+
+@dataclass(frozen=True)
+class CommentNode:
+    """DOCX 批注节点。
+
+    comment_id: 批注 ID（对应 word/comments.xml 中的 w:id）
+    text: 批注正文
+    author: 批注作者
+    """
+
+    comment_id: str
+    text: str
+    author: str = ""
+
+
+@dataclass(frozen=True)
+class DocumentNode:
+    """DOCX 文档节点。
+
+    path: 文件路径
+    final_text: 最终显示正文（接受所有修订后的可见文本）
+    paragraphs: 段落文本列表
+    tables: 表格节点列表（当前仅占位，每项为表格内文本列表）
+    revisions: 修订节点列表
+    comments: 批注节点列表
+    limitations: 限制说明列表（如 "image_content_not_parsed"）
+    """
+
+    path: str = ""
+    final_text: str = ""
+    paragraphs: list[str] = field(default_factory=list)
+    tables: list[list[str]] = field(default_factory=list)
+    revisions: list[RevisionNode] = field(default_factory=list)
+    comments: list[CommentNode] = field(default_factory=list)
+    limitations: list[str] = field(default_factory=list)

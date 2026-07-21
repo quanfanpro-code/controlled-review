@@ -5,9 +5,16 @@
 
 import pytest
 
+from tests.fixtures.docx_factory import docx_fixture, docx_with_image_table
 from tests.fixtures.xlsx_factory import xlsx_fixture
 
-__all__ = ["xlsx_fixture", "sample_xlsx", "recalculator"]
+__all__ = [
+    "xlsx_fixture",
+    "sample_xlsx",
+    "recalculator",
+    "docx_fixture",
+    "docx_with_image_table",
+]
 
 
 @pytest.fixture

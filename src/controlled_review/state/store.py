@@ -55,16 +55,20 @@ class StateStore:
 
     @contextmanager
     def transaction(self, immediate=False):
-        """事务上下文管理器。immediate=True 时使用 IMMEDIATE 事务。"""
+        """事务上下文管理器。immediate=True 时使用 IMMEDIATE 事务。
+
+        autocommit=True 模式下，connection.commit()/rollback() 是 no-op，
+        必须用 SQL COMMIT/ROLLBACK 才能正确结束 BEGIN 启动的显式事务。
+        """
         if immediate:
             self.connection.execute("BEGIN IMMEDIATE")
         else:
             self.connection.execute("BEGIN")
         try:
             yield self.connection
-            self.connection.commit()
+            self.connection.execute("COMMIT")
         except Exception:
-            self.connection.rollback()
+            self.connection.execute("ROLLBACK")
             raise
 
     def claim(self, project_id, target_id, role, expires_at):

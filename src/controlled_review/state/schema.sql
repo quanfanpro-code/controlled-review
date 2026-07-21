@@ -223,3 +223,12 @@ CREATE TABLE IF NOT EXISTS output_receipts (
     generated_at TEXT,
     FOREIGN KEY (project_id) REFERENCES projects(id)
 );
+
+-- 17. 写入所有权表（跨进程隔离用，单写核心 R-FN-001）
+CREATE TABLE IF NOT EXISTS writers (
+    project_id TEXT PRIMARY KEY,
+    owner_pid INTEGER NOT NULL,
+    acquired_at TEXT NOT NULL,
+    last_heartbeat TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id)
+);

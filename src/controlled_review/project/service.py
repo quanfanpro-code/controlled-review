@@ -49,8 +49,6 @@ class ProjectService:
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
         self.store = StateStore.create(self.state_dir / "review_state.sqlite3")
-        # 写入所有权映射：project_id -> (process_id, acquired_at)
-        self._owners = {}
 
     def create(self, sources):
         """创建项目并冻结源文件摘要。
@@ -59,14 +57,15 @@ class ProjectService:
         返回 Project 对象。
         """
         project_id = str(uuid.uuid4())
-        # 懒插入项目记录，仅填充主键，其余字段由后续流程补齐
-        self.store.connection.execute(
-            "INSERT OR IGNORE INTO projects (id) VALUES (?)",
-            (project_id,),
-        )
-        for source in sources:
-            self._freeze_source(project_id, source)
-        self.store.connection.commit()
+        # 用显式事务包裹所有 INSERT，中途失败整体回滚（autocommit=True 下 BEGIN 生效）
+        with self.store.transaction():
+            # 懒插入项目记录，仅填充主键，其余字段由后续流程补齐
+            self.store.connection.execute(
+                "INSERT OR IGNORE INTO projects (id) VALUES (?)",
+                (project_id,),
+            )
+            for source in sources:
+                self._freeze_source(project_id, source)
         return Project(id=project_id)
 
     def _freeze_source(self, project_id, source):
@@ -109,14 +108,34 @@ class ProjectService:
                 raise SourceChanged(path=path)
 
     def acquire_writer(self, project_id):
-        """获取项目写入权。第二进程调用时抛出 ProjectAlreadyOwned。"""
-        # 检查是否已有写入者持有该项目
-        if project_id in self._owners:
-            raise ProjectAlreadyOwned(project_id)
-        # 记录写入者信息：进程标识 + 心跳时间
+        """获取项目写入权。已存在 owner 时抛出 ProjectAlreadyOwned。
+
+        通过 writers 表实现跨进程隔离：使用 BEGIN IMMEDIATE 事务保证
+        两个进程不会同时插入同一项目的 writer 记录。
+        """
         process_id = os.getpid()
         acquired_at = datetime.now(timezone.utc)
-        self._owners[project_id] = (process_id, acquired_at)
+        acquired_iso = acquired_at.isoformat()
+        # BEGIN IMMEDIATE 立即获取保留锁，跨进程互斥
+        with self.store.transaction(immediate=True):
+            # 确保 project 存在（writers.project_id 有外键约束）
+            self.store.connection.execute(
+                "INSERT OR IGNORE INTO projects (id) VALUES (?)",
+                (project_id,),
+            )
+            # 检查是否已有写入者持有该项目
+            cursor = self.store.connection.execute(
+                "SELECT owner_pid FROM writers WHERE project_id = ?",
+                (project_id,),
+            )
+            if cursor.fetchone() is not None:
+                raise ProjectAlreadyOwned(project_id)
+            # 插入 writer 记录，持久化所有权
+            self.store.connection.execute(
+                "INSERT INTO writers (project_id, owner_pid, acquired_at, last_heartbeat) "
+                "VALUES (?, ?, ?, ?)",
+                (project_id, process_id, acquired_iso, acquired_iso),
+            )
         return WriterLease(
             project_id=project_id,
             process_id=process_id,
@@ -125,8 +144,12 @@ class ProjectService:
         )
 
     def _release_writer(self, project_id):
-        """释放项目写入权。"""
-        self._owners.pop(project_id, None)
+        """释放项目写入权，从 writers 表删除 owner 记录。"""
+        with self.store.transaction():
+            self.store.connection.execute(
+                "DELETE FROM writers WHERE project_id = ?",
+                (project_id,),
+            )
 
 
 class ProjectAlreadyOwned(Exception):

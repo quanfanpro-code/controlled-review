@@ -36,17 +36,73 @@ def sample_xlsx(tmp_path):
 def workbook_nodes():
     """创建测试用工作簿节点列表。
 
-    提供三张工作表：
+    提供三张工作表，每张都填充可被多信号分类识别的单元格：
+    - 标题单元格（A1）保存工作表名称
+    - 单位标注（A2）"单位：千元" -> CNY_THOUSAND
+    - 期间列头（B3="本期"，C3="上期"）-> (current, prior)
+    - 行项目（A4 起）提供该报表的典型项目
     - "合并资产负债表1"（合并层面，拆分第一部分）
     - "合并资产负债表2"（合并层面，拆分第二部分）
     - "母公司资产负债表"（母公司层面）
     """
-    from controlled_review.documents.models import SheetNode, WorkbookNode
+    from controlled_review.documents.models import CellNode, SheetNode, WorkbookNode
+
+    def make_sheet(name: str, line_items: tuple[str, ...] | None = None) -> SheetNode:
+        """构造单张工作表节点，预置标题/单位/期间/行项目单元格。"""
+        cells: dict[str, CellNode] = {}
+        # 标题单元格
+        cells["A1"] = CellNode(
+            address="A1",
+            formula=None,
+            value=name,
+            raw_value=name,
+            number_format=None,
+            data_type="s",
+        )
+        # 单位标注
+        cells["A2"] = CellNode(
+            address="A2",
+            formula=None,
+            value="单位：千元",
+            raw_value="单位：千元",
+            number_format=None,
+            data_type="s",
+        )
+        # 期间列头
+        cells["B3"] = CellNode(
+            address="B3",
+            formula=None,
+            value="本期",
+            raw_value="本期",
+            number_format=None,
+            data_type="s",
+        )
+        cells["C3"] = CellNode(
+            address="C3",
+            formula=None,
+            value="上期",
+            raw_value="上期",
+            number_format=None,
+            data_type="s",
+        )
+        # 行项目
+        if line_items:
+            for i, item in enumerate(line_items, start=4):
+                addr = f"A{i}"
+                cells[addr] = CellNode(
+                    address=addr,
+                    formula=None,
+                    value=item,
+                    raw_value=item,
+                    number_format=None,
+                    data_type="s",
+                )
+        return SheetNode(name=name, cells=cells)
 
     sheets = [
-        SheetNode(name="合并资产负债表1"),
-        SheetNode(name="合并资产负债表2"),
-        SheetNode(name="母公司资产负债表"),
+        make_sheet("合并资产负债表1", line_items=("货币资金", "应收账款")),
+        make_sheet("合并资产负债表2", line_items=("存货", "固定资产")),
+        make_sheet("母公司资产负债表", line_items=("货币资金", "实收资本")),
     ]
     return [WorkbookNode(path="test.xlsx", sheets=sheets)]
 

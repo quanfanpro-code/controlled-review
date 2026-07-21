@@ -80,4 +80,4 @@ def test_canary_changes_exactly_one_semantic_field(canary_factory, target) -> No
 def test_missed_canary_rejects_all_real_items(gate, assignment_with_canary) -> None:
     result = gate.finish(assignment_with_canary, canary_result="no_exception")
     assert result.action == "retry"
-    assert all(state == "pending" for state in result.real_target_states.values())
+    assert all(state == "pending" for state in result.real_target_states)

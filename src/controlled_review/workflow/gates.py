@@ -21,11 +21,11 @@ class GateResult:
     - retry: 整组作废，真实目标回到 pending，重新分配
     - unreliable: 第三名仍漏检，真实目标标记为未能可靠完成
 
-    real_target_states: target_id -> state 字典，由上层服务落库。
+    real_target_states: 与 real_target_ids 一一对应的目标状态元组，由上层服务落库。
     """
 
     action: str
-    real_target_states: dict
+    real_target_states: tuple[str, ...]
     reason: str = ""
 
 
@@ -58,17 +58,17 @@ class Gate:
             # 漏检隐藏测试，整组作废
             return GateResult(
                 action="retry",
-                real_target_states={
-                    tid: "pending" for tid in assignment.real_target_ids
-                },
+                real_target_states=tuple(
+                    "pending" for _ in assignment.real_target_ids
+                ),
                 reason="canary_missed",
             )
         # 通过隐藏测试
         return GateResult(
             action="pass",
-            real_target_states={
-                tid: "accepted" for tid in assignment.real_target_ids
-            },
+            real_target_states=tuple(
+                "accepted" for _ in assignment.real_target_ids
+            ),
         )
 
     def mark_unreliable(self, assignment):
@@ -79,8 +79,8 @@ class Gate:
         """
         return GateResult(
             action="unreliable",
-            real_target_states={
-                tid: "unreliable" for tid in assignment.real_target_ids
-            },
+            real_target_states=tuple(
+                "unreliable" for _ in assignment.real_target_ids
+            ),
             reason="third_worker_canary_missed",
         )

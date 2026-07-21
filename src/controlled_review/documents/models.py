@@ -168,12 +168,14 @@ class CommentNode:
 class TableCellNode:
     """DOCX 表格单元格。
 
+    id: 单元格节点 ID，用于关联 Markdown 辅助内容，默认空串
     text: 单元格文本（非删除部分拼接）
     grid_span: 水平合并跨度，对应 <w:gridSpan w:val="N"/>，默认 1
     vertical_merge: 垂直合并状态，对应 <w:vMerge>：
         "restart" 表示合并起始，"continue" 表示延续上一行，空串表示未合并
     """
 
+    id: str = ""
     text: str = ""
     grid_span: int = 1
     vertical_merge: str = ""

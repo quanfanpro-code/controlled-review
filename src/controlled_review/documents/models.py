@@ -8,7 +8,9 @@
 - WorkbookNode：工作簿节点，保存工作表列表、风险列表、命名区域、外部链接
 - RevisionNode：DOCX 修订节点，保存插入/删除的文本
 - CommentNode：DOCX 批注节点，保存批注 ID、内容、作者
-- DocumentNode：DOCX 文档节点，保存最终正文、段落、表格、修订、批注、限制
+- TableCellNode/TableRowNode/TableNode：DOCX 表格节点，保留行列与合并单元格
+- DocumentNode：DOCX 文档节点，保存最终正文、段落、表格、修订、批注、限制、
+  脚注、尾注、域、隐藏文字、标题路径
 """
 
 from dataclasses import dataclass, field
@@ -163,22 +165,67 @@ class CommentNode:
 
 
 @dataclass(frozen=True)
+class TableCellNode:
+    """DOCX 表格单元格。
+
+    text: 单元格文本（非删除部分拼接）
+    grid_span: 水平合并跨度，对应 <w:gridSpan w:val="N"/>，默认 1
+    vertical_merge: 垂直合并状态，对应 <w:vMerge>：
+        "restart" 表示合并起始，"continue" 表示延续上一行，空串表示未合并
+    """
+
+    text: str = ""
+    grid_span: int = 1
+    vertical_merge: str = ""
+
+
+@dataclass(frozen=True)
+class TableRowNode:
+    """DOCX 表格行。
+
+    cells: 单元格节点列表，按文档顺序
+    """
+
+    cells: list[TableCellNode] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class TableNode:
+    """DOCX 表格。
+
+    rows: 行节点列表，按文档顺序
+    """
+
+    rows: list[TableRowNode] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
 class DocumentNode:
     """DOCX 文档节点。
 
     path: 文件路径
-    final_text: 最终显示正文（接受所有修订后的可见文本）
+    final_text: 最终显示正文（接受所有修订后的可见文本，不含隐藏文字）
     paragraphs: 段落文本列表
-    tables: 表格节点列表（当前仅占位，每项为表格内文本列表）
+    tables: 表格节点列表，保留行列与合并单元格结构
     revisions: 修订节点列表
     comments: 批注节点列表
     limitations: 限制说明列表（如 "image_content_not_parsed"）
+    footnotes: 脚注内容列表，从 word/footnotes.xml 提取
+    endnotes: 尾注内容列表，从 word/endnotes.xml 提取
+    fields: 域代码列表，从 <w:instrText> 提取
+    hidden_texts: 隐藏文字列表，<w:vanish> 标记的运行文本
+    heading_path: 标题层级路径，按文档顺序的标题栈（如 ["第一章", "1.1 现状"]）
     """
 
     path: str = ""
     final_text: str = ""
     paragraphs: list[str] = field(default_factory=list)
-    tables: list[list[str]] = field(default_factory=list)
+    tables: list[TableNode] = field(default_factory=list)
     revisions: list[RevisionNode] = field(default_factory=list)
     comments: list[CommentNode] = field(default_factory=list)
     limitations: list[str] = field(default_factory=list)
+    footnotes: list[str] = field(default_factory=list)
+    endnotes: list[str] = field(default_factory=list)
+    fields: list[str] = field(default_factory=list)
+    hidden_texts: list[str] = field(default_factory=list)
+    heading_path: list[str] = field(default_factory=list)

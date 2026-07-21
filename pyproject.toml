@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "controlled-review"
+version = "0.1.0"
+description = "通用受控财务报表复核系统"
+readme = { text = "controlled-review", content-type = "text/plain" }
+requires-python = ">=3.12"
+authors = [{ name = "controlled-review" }]
+dependencies = [
+    # Office 开放文档解析
+    "openpyxl>=3.1",
+    "python-docx>=1.1",
+    # Windows Office 自动化
+    "pywin32>=306",
+    # 官方 MCP Python SDK
+    "mcp>=1.0",
+    # Web 服务与模板
+    "fastapi>=0.110",
+    "uvicorn>=0.27",
+    "jinja2>=3.1",
+    # HTTP 客户端
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

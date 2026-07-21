@@ -60,8 +60,6 @@ CREATE TABLE IF NOT EXISTS mappings (
 );
 
 -- 5. 核对目标表（项目内唯一）
---    project_id 逻辑上引用 projects(id)，作为复合主键的一部分；
---    不附加 FOREIGN KEY 约束，以保证 insert_target 可独立写入。
 CREATE TABLE IF NOT EXISTS targets (
     project_id TEXT NOT NULL,
     target_id TEXT NOT NULL,
@@ -70,7 +68,8 @@ CREATE TABLE IF NOT EXISTS targets (
     related_node_ids TEXT,
     machine_findings TEXT,
     current_status TEXT,
-    PRIMARY KEY (project_id, target_id)
+    PRIMARY KEY (project_id, target_id),
+    FOREIGN KEY (project_id) REFERENCES projects(id)
 );
 
 -- 6. 任务分配表

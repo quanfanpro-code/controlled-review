@@ -37,6 +37,11 @@ class StateStore:
 
     def insert_target(self, project_id, target_id, status):
         """插入核对目标，违反 (project_id, target_id) 唯一约束时抛出 IntegrityError。"""
+        # ponytail: 懒插入占位 project，外键约束满足即可；已存在则 IGNORE 跳过。
+        self.connection.execute(
+            "INSERT OR IGNORE INTO projects (id) VALUES (?)",
+            (project_id,),
+        )
         self.connection.execute(
             "INSERT INTO targets (project_id, target_id, current_status) VALUES (?, ?, ?)",
             (project_id, target_id, status),

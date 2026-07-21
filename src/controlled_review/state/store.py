@@ -27,7 +27,9 @@ class StateStore:
     def create(cls, path):
         """创建数据库，启用 WAL 与外键约束，并执行建表脚本。"""
         # autocommit=True：显式管理事务，让 transaction() 中的 BEGIN IMMEDIATE 能正常工作
-        connection = sqlite3.connect(path, autocommit=True)
+        # check_same_thread=False：允许 AssignmentService 在多线程场景下复用同一 connection
+        # （并发互斥由 BEGIN IMMEDIATE 保留锁 + 调用方进程内锁共同保证）
+        connection = sqlite3.connect(path, autocommit=True, check_same_thread=False)
         connection.execute("PRAGMA journal_mode=WAL")
         connection.execute("PRAGMA foreign_keys=ON")
         connection.executescript(resources.files(__package__).joinpath("schema.sql").read_text("utf-8"))

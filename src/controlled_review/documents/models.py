@@ -45,12 +45,25 @@ class RowNode:
 
 
 @dataclass(frozen=True)
+class ColumnNode:
+    """列节点。
+
+    index: 列字母，如 "C"
+    hidden: 是否隐藏
+    """
+
+    index: str
+    hidden: bool = False
+
+
+@dataclass(frozen=True)
 class SheetNode:
     """工作表节点。
 
     name: 工作表名称
     cells: 地址 -> 单元格节点
     rows: 行号 -> 行节点
+    columns: 列字母 -> 列节点
     visible: 是否可见（兼容字段，state=='visible' 时为 True）
     state: 可见状态，取值 visible/hidden/veryHidden
     merged_ranges: 合并区域列表，如 ["A1:B2", "C3:D4"]
@@ -61,6 +74,7 @@ class SheetNode:
     name: str
     cells: dict[str, CellNode] = field(default_factory=dict)
     rows: dict[int, RowNode] = field(default_factory=dict)
+    columns: dict[str, ColumnNode] = field(default_factory=dict)
     visible: bool = True
     state: str = "visible"
     merged_ranges: list[str] = field(default_factory=list)
@@ -74,6 +88,10 @@ class SheetNode:
     def row(self, index: int) -> RowNode:
         """获取指定行号的行节点。"""
         return self.rows[index]
+
+    def column(self, letter: str) -> ColumnNode:
+        """获取指定列字母的列节点。"""
+        return self.columns[letter]
 
 
 @dataclass(frozen=True)

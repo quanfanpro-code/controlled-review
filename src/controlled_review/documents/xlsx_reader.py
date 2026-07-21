@@ -11,6 +11,7 @@ from openpyxl import Workbook, load_workbook
 
 from .models import (
     CellNode,
+    ColumnNode,
     RiskNode,
     RowNode,
     SheetNode,
@@ -56,6 +57,11 @@ def _build_sheet(ws_formula, ws_value, risks: list[RiskNode]) -> SheetNode:
     for row_idx, dim in ws_formula.row_dimensions.items():
         rows[row_idx] = RowNode(index=row_idx, hidden=bool(dim.hidden))
 
+    # 列节点（仅记录显式声明过维度信息的列，含 hidden 状态）
+    columns: dict[str, ColumnNode] = {}
+    for col_letter, dim in ws_formula.column_dimensions.items():
+        columns[col_letter] = ColumnNode(index=col_letter, hidden=bool(dim.hidden))
+
     # 合并区域
     merged_ranges = [str(r) for r in ws_formula.merged_cells.ranges]
 
@@ -85,6 +91,7 @@ def _build_sheet(ws_formula, ws_value, risks: list[RiskNode]) -> SheetNode:
         name=ws_formula.title,
         cells=cells,
         rows=rows,
+        columns=columns,
         visible=(state == "visible"),
         state=state,
         merged_ranges=merged_ranges,
@@ -104,11 +111,11 @@ def _extract_external_links(wb: Workbook) -> list[str]:
     return result
 
 
-def build_workbook_node(formulas: Workbook, values: Workbook) -> WorkbookNode:
+def build_workbook_node(formulas: Workbook, values: Workbook, path: str = "") -> WorkbookNode:
     """由公式视图与缓存值视图构造 WorkbookNode。
 
     保存工作表顺序与可见状态、单元格地址/公式/缓存值/数字格式/数据类型、
-    隐藏行、合并区域、命名区域、打印区域、外部链接；
+    隐藏行、隐藏列、合并区域、命名区域、打印区域、外部链接；
     检测宏、数据透视表、外部连接，形成 RiskNode（不执行）。
     """
     risks: list[RiskNode] = []
@@ -143,7 +150,7 @@ def build_workbook_node(formulas: Workbook, values: Workbook) -> WorkbookNode:
         sheets.append(_build_sheet(ws_formula, ws_value, risks))
 
     return WorkbookNode(
-        path="",
+        path=path,
         sheets=sheets,
         risks=risks,
         named_ranges=named_ranges,
@@ -161,4 +168,4 @@ class XlsxReader:
     def read(self, path: Path) -> WorkbookNode:
         formulas = load_workbook(path, data_only=False, read_only=False, keep_links=True)
         values = load_workbook(path, data_only=True, read_only=False, keep_links=True)
-        return build_workbook_node(formulas, values)
+        return build_workbook_node(formulas, values, str(path))

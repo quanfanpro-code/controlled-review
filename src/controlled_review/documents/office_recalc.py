@@ -76,7 +76,11 @@ class OfficeRecalculator:
         try:
             excel = dispatch_excel()
         except Exception:
-            # Excel 不可用：返回原件路径，绝不修改原件
+            # Excel 不可用：清理临时目录，返回原件路径，绝不修改原件
+            try:
+                shutil.rmtree(temp_dir, ignore_errors=True)
+            except Exception:
+                pass
             return RecalcResult(
                 recalculated_path=source,
                 macros_enabled=False,
@@ -93,6 +97,9 @@ class OfficeRecalculator:
             # Open 在某些 Excel 版本返回 None，用 ActiveWorkbook 获取工作簿
             workbooks.Open(str(copy), 0, False)
             workbook = excel.ActiveWorkbook
+            # Open 静默失败时 ActiveWorkbook 也可能返回 None
+            if workbook is None:
+                raise RuntimeError("Excel 打开工作簿失败：Open 返回 None 且无活动工作簿")
             # 标记 Workbook 的方法（_FlagAsMethod 不接受 keyword 参数）
             workbook._FlagAsMethod("Save")
             workbook._FlagAsMethod("Close")

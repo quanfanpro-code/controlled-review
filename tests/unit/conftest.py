@@ -31,6 +31,12 @@ def recalculator(monkeypatch):
 
     用 unittest.mock.MagicMock 模拟 Excel COM 对象，
     单元测试不依赖真实 Office 安装。
+
+    mock 行为对齐真实 Excel：
+    - mock_excel.ActiveWorkbook 返回 mock_workbook（与真实 Open 失败回退路径一致）
+    - mock_excel.Workbooks.Open 返回 mock_workbook（保留旧约定）
+    mock_excel 与 mock_workbook 附加为实例属性 _mock_excel / _mock_workbook，
+    供测试验证关键调用（_FlagAsMethod、AutomationSecurity、Close 等）。
     """
     from unittest.mock import MagicMock
 
@@ -38,9 +44,15 @@ def recalculator(monkeypatch):
 
     mock_excel = MagicMock()
     mock_workbook = MagicMock()
+    # 对齐真实 Excel 行为：ActiveWorkbook 返回工作簿对象
+    mock_excel.ActiveWorkbook = mock_workbook
     mock_excel.Workbooks.Open.return_value = mock_workbook
     monkeypatch.setattr(
         "controlled_review.documents.office_recalc.dispatch_excel",
         lambda: mock_excel,
     )
-    return OfficeRecalculator()
+    recalculator = OfficeRecalculator()
+    # 暴露 mock 给测试，验证关键调用
+    recalculator._mock_excel = mock_excel
+    recalculator._mock_workbook = mock_workbook
+    return recalculator

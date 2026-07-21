@@ -40,3 +40,18 @@ def store(tmp_path):
 def clock():
     """返回可控时钟对象。"""
     return FakeClock()
+
+
+@pytest.fixture
+def sample_xlsx(tmp_path):
+    """创建一个简单的 XLSX 文件用于测试。"""
+    from openpyxl import Workbook
+
+    wb = Workbook()
+    ws = wb.active
+    ws["A1"] = 1
+    ws["A2"] = 2
+    ws["A3"] = "=SUM(A1:A2)"
+    path = tmp_path / "sample.xlsx"
+    wb.save(path)
+    return path

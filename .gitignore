@@ -31,3 +31,7 @@ coverage.xml
 # 操作系统
 Thumbs.db
 .DS_Store
+
+# 开发工作流临时文件
+.superpowers/
+Backup/

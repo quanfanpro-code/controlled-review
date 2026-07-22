@@ -382,4 +382,10 @@ python -c "import subprocess; subprocess.run(['git', 'commit', '-m', '...'], cwd
 
 ---
 
+## 📄 开源协议
+
+本项目采用 **MIT 协议**，你可以自由使用、修改、分发，详见 [LICENSE](LICENSE) 文件。
+
+---
+
 > 🐱 本系统由人工智能辅助开发，遵循测试驱动开发流程，24 个任务、72 个测试全部通过。

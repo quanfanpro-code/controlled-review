@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>创建项目</title>
+</head>
+<body>
+    <h1>创建复核项目</h1>
+    <!-- mapping_confirmation 默认为 skip，用户可主动选择是否确认对应关系 -->
+    <form method="post" action="/projects" enctype="multipart/form-data">
+        <input type="hidden" name="mapping_confirmation" value="skip">
+        <label>报表文件: <input type="file" name="statements" required></label>
+        <label>附注文件: <input type="file" name="notes" required></label>
+        <button type="submit">创建项目</button>
+    </form>
+</body>
+</html>

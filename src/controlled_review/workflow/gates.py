@@ -9,7 +9,7 @@
 本模块仅实现核心门禁逻辑，状态持久化由上层服务负责。
 """
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 
 @dataclass(frozen=True)
@@ -84,3 +84,103 @@ class Gate:
             ),
             reason="third_worker_canary_missed",
         )
+
+
+# 结论提交必填字段元组，按简报原样使用
+REQUIRED_FIELDS = (
+    "scope",
+    "statement",
+    "line_item",
+    "periods",
+    "unit",
+    "currency",
+    "mapping",
+    "related_checks",
+    "fact",
+    "reason",
+    "evidence_ids",
+    "confidence",
+)
+
+
+@dataclass(frozen=True)
+class Submission:
+    """复核结论提交。
+
+    由工作者在完成复核后提交，包含范围、报表、行项目、期间、单位、币种、
+    附注映射、相关检查、事实、原因、证据 ID 元组与置信度等结构化字段。
+    evidence_ids 为元组，保证不可变。
+    """
+
+    scope: str = ""
+    statement: str = ""
+    line_item: str = ""
+    periods: str = ""
+    unit: str = ""
+    currency: str = ""
+    mapping: str = ""
+    related_checks: str = ""
+    fact: str = ""
+    reason: str = ""
+    evidence_ids: tuple = ()
+    confidence: str = ""
+
+    def without(self, field):
+        """返回移除指定字段后的副本。
+
+        将指定字段设为 None，表示该字段缺失。
+        用于测试和校验缺失字段场景。
+
+        Args:
+            field: 要移除的字段名。
+
+        Returns:
+            新的 Submission 对象，指定字段值为 None。
+        """
+        data = {k: v for k, v in asdict(self).items() if k != field}
+        data[field] = None  # 设为 None 表示缺失
+        return Submission(**data)
+
+
+@dataclass(frozen=True)
+class SubmitResult:
+    """提交结果。
+
+    accepted=True 表示通过门禁；accepted=False 时 missing_fields
+    列出缺失的必填字段名。
+    """
+
+    accepted: bool
+    missing_fields: tuple[str, ...] = ()
+
+
+class ReviewGate:
+    """结论门禁。
+
+    工作者提交复核结论后，由 ReviewGate 检查必填字段是否完整：
+    - 任一必填字段为空（None/""/()）-> accepted=False，missing_fields 报告缺失字段。
+    - 全部必填字段均有值 -> accepted=True，可进入下一步比较。
+
+    本类只做字段完整性校验，语义比较由 Comparator 负责。
+    """
+
+    def submit(self, submission) -> SubmitResult:
+        """提交结论，检查必填字段。
+
+        Args:
+            submission: Submission 对象。
+
+        Returns:
+            SubmitResult：
+            - 缺失字段时 accepted=False，missing_fields 列出缺失字段名。
+            - 全部字段齐全时 accepted=True。
+        """
+        missing = []
+        for field in REQUIRED_FIELDS:
+            value = getattr(submission, field, None)
+            # None/空字符串/空元组均视为缺失
+            if value is None or value == "" or value == ():
+                missing.append(field)
+        if missing:
+            return SubmitResult(accepted=False, missing_fields=tuple(missing))
+        return SubmitResult(accepted=True)

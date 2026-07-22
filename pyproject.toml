@@ -30,6 +30,10 @@ test = [
     "pytest>=8.0",
 ]
 
+[project.scripts]
+controlled-review = "controlled_review.interfaces.cli:main"
+controlled-review-mcp = "controlled_review.interfaces.mcp_server:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
